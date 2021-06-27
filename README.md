@@ -1,2 +1,3 @@
-# Factors_influencing_GDP
-This is my econometrics project on determining what people's values can influence GDP growth. At first I used Robert Barro's model for determining significant variables, that affected GDP growth in 2015-2019. 
+# Influence of people's values on the GDP growth
+The aim of this project is to check whether people's values have impact on the economic
+growth of the country. At first I used modified version of Robert Barro's model to determine significant variables, that affected GDP growth in 2015-2019. Then variables corresponding to different people's values were added to the model. Check out more in results.pdf. 
