@@ -1,0 +1,150 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(rlang)
+library(dplyr)
+```
+
+Load data about GDP.
+```{r}
+gdp_data <- read.csv("GDP_15_19.csv")
+colnames(gdp_data) <- c("country_code", "GDP2015", "GDP2019")
+gdp_data$GDP_growth_rate_15_19 <- (gdp_data$GDP2019 - gdp_data$GDP2015) / gdp_data$GDP2015
+gdp_data <- gdp_data[-c(3)]
+gdp_data <- na.omit(gdp_data)
+gdp_data
+```
+
+Load data about life expectancy.
+```{r}
+life_data <- read.csv("life_expect.csv")
+colnames(life_data) <- c("country_code", "2014", "2015", "2016", "2017", "2018")
+life_data$AVG_life <- rowMeans(life_data[2:6])
+life_data <- life_data[-c(2:6)]
+life_data <- na.omit(life_data)
+life_data
+```
+
+Load data about rule-of-law index.
+```{r}
+rule_law_data <- read.csv("rule_of_law_2017_2018.csv")
+colnames(rule_law_data) <- c("country_code", "rule_law")
+rule_law_data <- na.omit(rule_law_data)
+rule_law_data
+```
+
+Load data about CPI.
+```{r}
+cpi_data <- read.csv("CPI_2015_2019.csv")
+colnames(cpi_data) <- c("country_code", "CPI2015", "CPI2019")
+cpi_data <- na.omit(cpi_data)
+cpi_data$cpi_growth_rate_15_19 <- (cpi_data$CPI2019 - cpi_data$CPI2015)/cpi_data$CPI2015
+cpi_data <- cpi_data[-c(2:3)]
+cpi_data
+```
+
+Load data about fertility rate.
+```{r}
+fert_data <- read.csv("fertility_rate_2015_2018.csv")
+colnames(fert_data) <- c("country_code", "FERT2015", "FERT2016", "FERT2017", "FERT2018")
+fert_data <- na.omit(fert_data)
+fert_data$AVG_FERT <- rowMeans(fert_data[2:5])
+fert_data <- fert_data[-c(2:5)]
+fert_data
+```
+
+Load data about imports and exports.
+```{r}
+exp_data <- read.csv("exp_15_19.csv")
+colnames(exp_data) <- c("country_code", "EXP2015", "EXP2019")
+imp_data <- read.csv("imports_15_19.csv")
+colnames(imp_data) <- c("country_code","IMP2015", "IMP2019")
+terms_trade_data <- inner_join(exp_data, imp_data, by=c("country_code"="country_code"))
+terms_trade_data <- na.omit(terms_trade_data)
+terms_trade_data$ratio_2015 <- terms_trade_data$EXP2015 / terms_trade_data$IMP2015
+terms_trade_data$ratio_2019 <- terms_trade_data$EXP2019 / terms_trade_data$IMP2019
+terms_trade_data$terms_trade_growth_rate <- (terms_trade_data$ratio_2019 - terms_trade_data$ratio_2015)/terms_trade_data$ratio_2015
+terms_trade_data <- terms_trade_data[-c(2:7)]
+terms_trade_data
+```
+
+Load data about government consumption.
+```{r}
+govt_cons_data <- read.csv("government_consumption_15_19.csv")
+colnames(govt_cons_data) <- c("country_code", "GOVT_CONS2015", "GOVT_CONS2016", "GOVT_CONS2017", "GOVT_CONS2018", "GOVT_CONS2019")
+govt_cons_data <- na.omit(govt_cons_data)
+govt_cons_data$AVG_GOVT_CONS <- rowMeans(govt_cons_data[2:6])
+govt_cons_data <- govt_cons_data[-c(2:6)]
+govt_cons_data
+```
+
+Model by Barro.
+```{r}
+growth_rates <- inner_join(gdp_data, life_data, by=c("country_code" = "country_code"))
+growth_rates <- inner_join(growth_rates, cpi_data, by=c("country_code" = "country_code"))
+growth_rates <- inner_join(growth_rates, rule_law_data, by=c("country_code" = "country_code"))
+growth_rates <- inner_join(growth_rates, fert_data, by=c("country_code" = "country_code"))
+growth_rates <- inner_join(growth_rates, terms_trade_data, by=c("country_code" = "country_code"))
+growth_rates <- inner_join(growth_rates, govt_cons_data, by=c("country_code" = "country_code"))
+growth_rates
+```
+
+```{r}
+model_barro <- lm(GDP_growth_rate_15_19 ~ log(GDP2015) + log(AVG_life) + rule_law + cpi_growth_rate_15_19 + log(AVG_FERT) + terms_trade_growth_rate + AVG_GOVT_CONS, data=growth_rates)
+summary(model_barro)
+```
+
+Load survey data.
+```{r}
+data_survey <- readRDS("EVS_WVS_Joint_v1.1.0 R.rds")
+data_survey
+```
+
+Load codes of countries.
+```{r}
+codes <- read.csv("countries_codes.csv")
+colnames(codes) <- c("country_name", "alpha_3", "alpha_2", "num")
+codes
+```
+
+```{r}
+growth_rates <- inner_join(growth_rates, codes, by = c("country_code" ="alpha_3"))
+growth_rates
+```
+
+```{r}
+values_data <- data_survey[c("cntry_AN", "F063", "E023", "C001_01", "A124_06")]
+colnames(values_data) <- c("cntry_AN", "religion",  "polit_inv", "women", "immigrants")
+values_data <- aggregate( . ~ cntry_AN, data = values_data, mean)
+values_data
+```
+
+
+Merge survey and GDP data.
+```{r}
+data_merged <- inner_join(values_data, growth_rates, by = c("cntry_AN" = "alpha_2"))
+data_merged
+```
+
+Countries from the dataset.
+```{r}
+unique(data_merged$country_name)
+```
+Model for GDP growth estimation with variables corresponding ti people's values.
+```{r}
+model_gdp_values <- lm(GDP_growth_rate_15_19 ~ log(GDP2015) + AVG_life + rule_law + cpi_growth_rate_15_19 + log(AVG_FERT) + terms_trade_growth_rate + AVG_GOVT_CONS + women + immigrants + polit_inv + religion, data=data_merged)
+summary(model_gdp_values)
+```
+Final model without variables polit_inv and religion.
+```{r}
+model_gdp_values <- lm(GDP_growth_rate_15_19 ~ log(GDP2015) + AVG_life + rule_law + cpi_growth_rate_15_19 + log(AVG_FERT) + terms_trade_growth_rate + AVG_GOVT_CONS + women + immigrants, data=data_merged)
+summary(model_gdp_values)
+```
+
